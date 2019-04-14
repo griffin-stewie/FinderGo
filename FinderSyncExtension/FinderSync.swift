@@ -35,6 +35,33 @@ class FinderSync: FIFinderSync, NSMenuDelegate {
     NSLog("requestBadgeIdentifierForURL: %@", url.path as NSString)
   }
 
+  var scriptsDirectoryURL: URL? {
+    return try? FileManager.default.url(for: .applicationScriptsDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+  }
+
+  func titles() -> [String] {
+    guard let scriptsDirectoryURL = scriptsDirectoryURL else {
+      NSLog("%@ %@", #function, "applicationScriptsDirectory does not exist");
+      return []
+    }
+
+    let fs = FileManager.default
+    guard let scriptsURLs = try? fs.contentsOfDirectory(at: scriptsDirectoryURL, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles, .skipsPackageDescendants, .skipsSubdirectoryDescendants]) else {
+      NSLog("%@ %@", #function, "applicationScriptsDirectory contents does not exist");
+      return []
+    }
+
+    let names = scriptsURLs.compactMap { (url) -> String? in
+      guard url.pathExtension == "scpt" else {
+        return nil
+      }
+
+      return url.deletingPathExtension().lastPathComponent
+    }
+
+    return names
+  }
+
   // MARK: - Menu and toolbar item support
 
   override var toolbarItemName: String {
@@ -53,9 +80,9 @@ class FinderSync: FIFinderSync, NSMenuDelegate {
     let menu = NSMenu(title: "")
     menu.delegate = self
 
-    menu.addItem(withTitle: "iTerm", action: #selector(openiTerm(_:)), keyEquivalent: "")
-    menu.addItem(withTitle: "Terminal", action: #selector(openTerminal(_:)), keyEquivalent: "")
-    menu.addItem(withTitle: "Hyper", action: #selector(openHyper(_:)), keyEquivalent: "")
+    for title in titles().sorted() {
+      menu.addItem(withTitle: title, action: #selector(open(_:)), keyEquivalent: "")
+    }
 
     return menu
   }
@@ -72,17 +99,8 @@ class FinderSync: FIFinderSync, NSMenuDelegate {
   }
 
   // MARK: - Action
-
-  @IBAction func openiTerm(_ sender: AnyObject?) {
-    run(fileName: "iterm")
-  }
-
-  @IBAction func openTerminal(_ sender: AnyObject?) {
-    run(fileName: "terminal")
-  }
-
-  @IBAction func openHyper(_ sender: AnyObject?) {
-    run(fileName: "hyper")
+  @IBAction func open(_ sender: NSMenuItem) {
+    run(fileName: sender.title)
   }
 
   // MARK: - Script
